@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>適職診断｜心理学ベースのキャリア診断</title>
+<title>適職診断｜心理学ベースのキャリア診断（30問）</title>
 <meta name="description" content="Big Five・RIASEC・MBTI的傾向・自己効力感を組み合わせた30問の適職診断アプリ（スマホ最適化）" />
 <style>
   :root{
-    --bg:#0b1220; --card:#0f1724; --accent:#6ad1ff; --accent2:#ffd36a;
+    --bg:#071021; --card:#0b1220; --accent:#6ad1ff; --accent2:#ffd36a;
     --muted:#9aa4b2; --text:#eaf2ff; --glass:rgba(255,255,255,0.03);
     --success:#7ee08a;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:linear-gradient(180deg,#071021 0%,#0b1220 100%);color:var(--text);display:flex;align-items:center;justify-content:center;padding:16px}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:linear-gradient(180deg,#071021 0%,#0b1220 100%);color:var(--text);display:flex;align-items:center;justify-content:center;padding:14px}
   .wrap{width:100%;max-width:720px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:14px;padding:16px;box-shadow:0 8px 40px rgba(2,6,23,0.6)}
   header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
   .logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#072033}
@@ -118,7 +118,7 @@
 
     <div style="margin-top:10px" class="panel">
       <div style="font-weight:800">転職アドバイス</div>
-      <div id="adviceText" class="small" style="margin-top:6px">—</div>
+      <div id="adviceText" class="small" style="margin-top:6px;white-space:pre-wrap">—</div>
     </div>
 
     <div class="small" style="margin-top:10px">共有する</div>
@@ -137,27 +137,20 @@
 </div>
 
 <script>
-/*
-  適職診断アプリ（1ファイル）
-  - 30問、5段階リッカート（0〜4）
-  - Big Five, RIASEC, MBTI-like, Self-efficacy を組み合わせて分析
-  - スマホ最適化、進捗バー、1問ずつ表示、結果グラフ、SNS共有、求人CTA
+/* --- 設計メモ（実装内） ---
+   - 30問、5段階リッカート（0〜4）
+   - 未回答は送信時に「中立（2）」として扱うか、確認して続行
+   - 進捗は「回答済み数 / 全問数」で表示（ユーザーがどれだけ答えたか分かる）
+   - 結果は Big Five, RIASEC, 働き方タイプ, 上位3職種, 転職アドバイス を表示
+   - 共有はネイティブ共有、LINE、X、Facebook、コピー
 */
 
-/* --- 設定 --- */
+/* 定数 */
 const NUM_Q = 30;
-const MAX_PER_Q = 4; // 0-4
-const MAX_SCORE = NUM_Q * MAX_PER_Q; // 120
+const MAX_PER_Q = 4;
+const MAX_SCORE = NUM_Q * MAX_PER_Q;
 
-/* 質問リスト（30問）とマッピング
-   各質問は1つ以上の指標にスコアを加算する。
-   mapping: { trait: weight }  where trait can be:
-     BigFive: O, C, E, A, N
-     RIASEC: R, I, A, S, E, C
-     MBTI: EI (positive -> E), SN (positive -> N), TF (positive -> T), JP (positive -> J)
-     SE: self-efficacy
-   reverse: true ならスコアを反転（4 -> 0）
-*/
+/* 質問とマッピング（30問） */
 const questions = [
   {q:"新しいアイデアや概念に興味があり、好奇心が強い。", map:{O:1}},
   {q:"計画を立てて着実に進める方だ。", map:{C:1, JP:1}},
@@ -190,7 +183,7 @@ const questions = [
   {q:"自分で目標を設定して達成することに喜びを感じる。", map:{SE:0.8, C:0.6}}
 ];
 
-/* 職業候補データ（簡易）とそれぞれに対応するRIASEC/特徴スコア */
+/* 職業候補 */
 const JOBS = [
   {id:'engineer', name:'エンジニア', tags:{R:0.8,I:0.6,O:0.4,C:0.6}},
   {id:'designer', name:'デザイナー', tags:{A_RIASEC:1,O:0.9}},
@@ -204,9 +197,9 @@ const JOBS = [
   {id:'medical', name:'医療系', tags:{S:0.9,C:0.6,A:0.6}}
 ];
 
-/* 内部スコア保持 */
+/* 状態 */
 let answers = new Array(NUM_Q).fill(null);
-let idx = 0;
+let currentIndex = 0;
 
 /* DOM */
 const startBtn = document.getElementById('startBtn');
@@ -226,34 +219,58 @@ const workStyle = document.getElementById('workStyle');
 const adviceText = document.getElementById('adviceText');
 const jobCta = document.getElementById('jobCta');
 
-/* Charts */
 const bigFiveCanvas = document.getElementById('bigFiveChart');
 const riasecCanvas = document.getElementById('riasecChart');
 const bfCtx = bigFiveCanvas.getContext('2d');
 const riCtx = riasecCanvas.getContext('2d');
 
-/* 共有 */
 const shareNative = document.getElementById('shareNative');
 const lineBtn = document.getElementById('lineBtn');
 const xBtn = document.getElementById('xBtn');
 const fbBtn = document.getElementById('facebookBtn');
 const copyBtn = document.getElementById('copyBtn');
 
-/* 初期化 */
+let preparedShareText = '';
+
+/* イベント */
 startBtn.addEventListener('click', startQuiz);
-prevBtn.addEventListener('click', ()=>{ if(idx>0){ idx--; renderQuestion(idx); }});
+prevBtn.addEventListener('click', ()=>{ if(currentIndex>0){ currentIndex--; renderQuestion(currentIndex); }});
 nextBtn.addEventListener('click', onNext);
 
-/* スタート */
+shareNative.addEventListener('click', async ()=>{
+  if(navigator.share){
+    try{ await navigator.share({title:'適職診断結果', text: preparedShareText, url: location.href}); }
+    catch(e){ alert('共有がキャンセルされました。'); }
+  } else { copyFallback(); }
+});
+lineBtn.addEventListener('click', ()=> {
+  const url = `https://line.me/R/msg/text/?${encodeURIComponent(preparedShareText + '\n' + location.href)}`;
+  window.open(url,'_blank');
+});
+xBtn.addEventListener('click', ()=> {
+  const url = `https://x.com/intent/tweet?text=${encodeURIComponent(preparedShareText)}&url=${encodeURIComponent(location.href)}`;
+  window.open(url,'_blank');
+});
+fbBtn.addEventListener('click', ()=> {
+  const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.href)}&quote=${encodeURIComponent(preparedShareText)}`;
+  window.open(url,'_blank');
+});
+copyBtn.addEventListener('click', async ()=>{
+  try{ await navigator.clipboard.writeText(`${preparedShareText}\n${location.href}`); alert('結果をコピーしました。SNSに貼ってシェアできます。'); }
+  catch(e){ copyFallback(); }
+});
+jobCta.addEventListener('click', ()=> { /* CTAクリック時の処理（必要なら拡張） */ });
+
+/* 開始 */
 function startQuiz(){
   startScreen.style.display = 'none';
   quizArea.style.display = 'block';
   renderQuestion(0);
 }
 
-/* レンダー */
+/* 質問レンダリング */
 function renderQuestion(i){
-  idx = i;
+  currentIndex = i;
   qnum.textContent = `質問 ${i+1} / ${NUM_Q}`;
   qtext.textContent = questions[i].q;
   choices.innerHTML = '';
@@ -274,65 +291,74 @@ function renderQuestion(i){
   updateProgress();
 }
 
+/* 選択 */
 function selectChoice(qIndex, val){
   answers[qIndex] = val;
+  // 視覚的に選択を反映するため再レンダリング
   renderQuestion(qIndex);
 }
 
+/* ナビゲーション更新 */
 function updateNav(){
-  prevBtn.disabled = idx === 0;
-  nextBtn.textContent = idx === NUM_Q -1 ? '診断する' : '次へ';
+  prevBtn.disabled = currentIndex === 0;
+  nextBtn.textContent = currentIndex === NUM_Q -1 ? '診断する' : '次へ';
 }
 
+/* 進捗は「回答済み数 / 全問数」 */
 function updateProgress(){
-  const pct = Math.round(((idx) / (NUM_Q)) * 100);
+  const answered = answers.filter(a=>a !== null).length;
+  const pct = Math.round((answered / NUM_Q) * 100);
   bar.style.width = `${pct}%`;
 }
 
-/* 次へ */
+/* 次へ処理 */
 function onNext(){
-  if(answers[idx] === null){
-    alert('まずは選択肢を選んでください。');
-    return;
+  // 回答が未選択なら促す
+  if(answers[currentIndex] === null){
+    // ユーザーが未回答のまま進むことを許可するか確認
+    if(!confirm('この質問は未回答です。未回答は「どちらでもない」として扱います。進みますか？')) return;
+    answers[currentIndex] = 2; // 中立扱い
   }
-  if(idx < NUM_Q -1){
-    idx++; renderQuestion(idx);
+  if(currentIndex < NUM_Q -1){
+    currentIndex++;
+    renderQuestion(currentIndex);
   } else {
+    // 最終問題の後に診断
     showResult();
   }
 }
 
 /* 結果表示 */
 function showResult(){
-  // 未回答チェック
-  const missing = answers.some(a=>a===null);
-  if(missing){
-    if(!confirm('未回答の質問があります。それでも診断しますか？')) return;
+  // 最終チェック：未回答があれば中立扱いにする（ユーザーに確認済みでない場合は確認）
+  const missingCount = answers.filter(a=>a===null).length;
+  if(missingCount > 0){
+    if(!confirm(`未回答が ${missingCount} 問あります。未回答は「どちらでもない」として扱います。診断を続けますか？`)) return;
+    for(let i=0;i<NUM_Q;i++) if(answers[i]===null) answers[i]=2;
   }
-  // スコア計算
-  const rawTotal = answers.reduce((s,v)=>s + (v===null?0:v),0);
-  scoreSummary.textContent = `総合スコア：${rawTotal} / ${MAX_SCORE} 点`;
+
+  // 総合スコア（単純合計）
+  const totalScore = answers.reduce((s,v)=>s + (v===null?2:v),0);
+  scoreSummary.textContent = `総合スコア：${totalScore} / ${MAX_SCORE} 点`;
 
   // 指標初期化
   const BF = {O:0,C:0,E:0,A:0,N:0};
   const RIASEC = {R:0,I:0,A:0,S:0,E:0,C:0};
   const MBTI = {EI:0,SN:0,TF:0,JP:0};
   let SE = 0;
-  // 各質問をマッピング
+
+  // マッピング集計
   for(let i=0;i<NUM_Q;i++){
     const q = questions[i];
-    const val = answers[i]===null?2:answers[i]; // 未回答は中立扱い
-    const score = val; // 0-4
+    const val = answers[i]===null?2:answers[i]; // 0-4
+    const score = val;
     for(const key in q.map){
       const weight = q.map[key];
-      // special keys: 'A_RIASEC' used for Artistic RIASEC
       if(key === 'A_RIASEC'){
         RIASEC.A += score * weight;
       } else if(key === 'Entrepreneur'){
-        // entrepreneur influences RIASEC E and job matching
         RIASEC.E += score * weight * 0.8;
       } else {
-        // BigFive or RIASEC or MBTI or SE
         if(BF.hasOwnProperty(key)){
           BF[key] += score * weight;
         } else if(RIASEC.hasOwnProperty(key)){
@@ -342,32 +368,27 @@ function showResult(){
         } else if(key === 'SE'){
           SE += score * weight;
         } else {
-          // fallback: if key matches like 'R' etc.
           if(RIASEC.hasOwnProperty(key)) RIASEC[key] += score * weight;
         }
       }
     }
   }
 
-  // 正規化（Big Fiveを0-100に）
+  // 正規化（簡易）
   const bfNorm = {};
-  const bfMaxPossible = NUM_Q * MAX_PER_Q; // rough upper bound
   for(const k in BF){
-    // scale to 0-100 by dividing by max possible contributions (approx)
-    bfNorm[k] = Math.round((BF[k] / (NUM_Q * 1.2)) * 100); // divisor tuned for weights
+    bfNorm[k] = Math.round((BF[k] / (NUM_Q * 1.2)) * 100);
     if(bfNorm[k] < 0) bfNorm[k] = 0;
     if(bfNorm[k] > 100) bfNorm[k] = 100;
   }
 
-  // RIASEC normalize
   const riNorm = {};
   let riSum = 0;
-  for(const k in RIASEC){ riSum += RIASEC[k]; }
+  for(const k in RIASEC) riSum += RIASEC[k];
   for(const k in RIASEC){
     riNorm[k] = Math.round(riSum ? (RIASEC[k] / riSum) * 100 : 0);
   }
 
-  // MBTI-like: determine tendencies
   const mbti = {
     E: MBTI.EI >= 0 ? Math.round((MBTI.EI / (NUM_Q*1)) * 100) : 50,
     N: MBTI.SN >= 0 ? Math.round((MBTI.SN / (NUM_Q*1)) * 100) : 50,
@@ -375,30 +396,25 @@ function showResult(){
     J: MBTI.JP >= 0 ? Math.round((MBTI.JP / (NUM_Q*1)) * 100) : 50
   };
 
-  // Self-efficacy normalize 0-100
   const seScore = Math.round((SE / (NUM_Q * 1)) * 100);
-  // Determine working style
+
+  // 働き方タイプ判定
   const work = determineWorkStyle(bfNorm, riNorm, mbti, seScore);
 
-  // Determine top 3 jobs by matching JOBS tags with user profile
+  // 職業マッチング（簡易スコア）
   const jobScores = JOBS.map(job=>{
     let score = 0;
     for(const tag in job.tags){
       const weight = job.tags[tag];
-      if(tag === 'R' || tag === 'I' || tag === 'A_RIASEC' || tag === 'S' || tag === 'E' || tag === 'C'){
-        // use riNorm or BF depending
-        if(tag === 'A_RIASEC'){
-          score += (riNorm['A'] || 0) * weight;
-        } else {
-          score += (riNorm[tag] || 0) * weight;
-        }
+      if(tag === 'A_RIASEC'){
+        score += (riNorm['A'] || 0) * weight;
+      } else if(['R','I','A','S','E','C'].includes(tag)){
+        score += (riNorm[tag] || 0) * weight;
       } else {
-        // Big Five or Entrepreneur
         if(bfNorm[tag]) score += bfNorm[tag] * weight;
         if(tag === 'Entrepreneur') score += (mbti.E || 50) * weight;
       }
     }
-    // small bonus for self-efficacy for entrepreneur/engineer
     if(job.id === 'entrepreneur') score += seScore * 0.4;
     if(job.id === 'engineer') score += seScore * 0.2;
     return {job:job, score};
@@ -406,10 +422,12 @@ function showResult(){
   jobScores.sort((a,b)=>b.score - a.score);
   const top3 = jobScores.slice(0,3);
 
-  // 表示
+  // グラフ描画
   drawBigFiveChart(bfNorm);
   drawRiasecChart(riNorm);
-  workStyle.textContent = work.label + " — " + work.brief;
+
+  // 表示
+  workStyle.textContent = `${work.label} — ${work.brief}`;
   jobList.innerHTML = '';
   top3.forEach((j,idx)=>{
     const li = document.createElement('li');
@@ -418,19 +436,20 @@ function showResult(){
   });
   adviceText.textContent = generateAdvice(work, top3, bfNorm, seScore);
 
-  // CTA: 求人検索の仮リンク（実運用では求人サービスのURLを入れる）
+  // CTAリンク（仮）
   jobCta.href = `https://www.google.com/search?q=${encodeURIComponent(top3[0].job.name + ' 求人')}`;
+
   // 画面切替
   document.getElementById('card').style.display = 'none';
   quizArea.style.display = 'none';
   resultArea.style.display = 'block';
+
   // 共有テキスト準備
-  prepareShareText(rawTotal, top3[0].job.name, work.label);
+  preparedShareText = `適職診断の結果：総合 ${totalScore} / ${MAX_SCORE} 点\n向いている職業：${top3[0].job.name}\n働き方タイプ：${work.label}\n（簡易診断）`;
 }
 
-/* ワークスタイル判定（簡易ルールベース） */
+/* 働き方タイプ判定（簡易ルール） */
 function determineWorkStyle(bf, ri, mbti, se){
-  // prioritize combinations
   if(ri['R'] >= 18 && bf.C >= 50) return {label:'分析型（Analytical）', brief:'論理的・問題解決志向'};
   if(ri['A'] >= 18 || bf.O >= 60) return {label:'クリエイティブ型（Creative）', brief:'発想力と表現力を活かす'};
   if(ri['S'] >= 18 || bf.A >= 55) return {label:'サポート型（Social）', brief:'人と関わり支援する仕事が向く'};
@@ -439,7 +458,7 @@ function determineWorkStyle(bf, ri, mbti, se){
   return {label:'バランス型（Balanced）', brief:'複数の役割を柔軟にこなせる'};
 }
 
-/* グラフ描画（シンプル） */
+/* シンプルな棒グラフ描画（Canvas） */
 function drawBigFiveChart(data){
   const ctx = bfCtx;
   const w = bigFiveCanvas.width;
@@ -452,13 +471,10 @@ function drawBigFiveChart(data){
     const val = data[k] || 0;
     const x = 10 + i * barW;
     const barH = (val/100) * (h - 30);
-    // 背景
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     ctx.fillRect(x,10,barW-12,h-20);
-    // 値
     ctx.fillStyle = 'rgba(106,209,255,0.9)';
     ctx.fillRect(x, h - 10 - barH, barW-12, barH);
-    // ラベル
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.font = '11px system-ui, sans-serif';
     ctx.fillText(labels[i], x, h - 0);
@@ -487,19 +503,19 @@ function drawRiasecChart(data){
   });
 }
 
-/* アドバイス生成（簡易テンプレ） */
+/* アドバイス生成（テンプレート） */
 function generateAdvice(work, top3, bf, se){
   let adv = `${work.label}の傾向があります。${work.brief}。\n`;
   adv += `おすすめ職種上位は ${top3.map(t=>t.job.name).join('、')} です。\n\n`;
   adv += '転職アドバイス：\n';
   if(work.label.includes('分析')){
-    adv += 'データや論理を活かせる職場で力を発揮できます。ポートフォリオや成果を数値で示すと有利です。';
+    adv += 'データや論理を活かせる職場で力を発揮できます。成果を数値で示すと有利です。';
   } else if(work.label.includes('クリエイティブ')){
-    adv += '作品やプロジェクトで表現力を示しましょう。フリーランスや制作会社のポジションが合いやすいです。';
+    adv += '作品やプロジェクトで表現力を示しましょう。ポートフォリオを整えると効果的です。';
   } else if(work.label.includes('サポート')){
-    adv += '対人支援や教育、医療など人に寄り添う職場で満足度が高くなります。資格や経験を積むと強みになります。';
+    adv += '対人支援や教育、医療など人に寄り添う職場で満足度が高くなります。経験や資格を強みに。';
   } else if(work.label.includes('起業')){
-    adv += 'リスクを取る場面で強みを発揮します。小さなプロジェクトで実績を作り、ネットワークを広げましょう。';
+    adv += '小さなプロジェクトで実績を作り、ネットワークを広げると次の一歩が踏み出しやすくなります。';
   } else {
     adv += '複数の業務を横断できるため、職務範囲が広い職場やプロジェクト型の仕事が向きます。';
   }
@@ -507,54 +523,14 @@ function generateAdvice(work, top3, bf, se){
   return adv;
 }
 
-/* 共有テキスト */
-let shareText = '';
-function prepareShareText(total, topJob, workLabel){
-  shareText = `適職診断の結果：総合 ${total} / ${MAX_SCORE} 点\n向いている職業：${topJob}\n働き方タイプ：${workLabel}\n（簡易診断）`;
-}
-
-/* 共有ボタン処理 */
-shareNative.addEventListener('click', async ()=>{
-  if(navigator.share){
-    try{
-      await navigator.share({title:'適職診断結果', text: shareText, url: location.href});
-    }catch(e){
-      alert('共有がキャンセルされました。');
-    }
-  } else {
-    copyFallback();
-  }
-});
-lineBtn.addEventListener('click', ()=> {
-  const url = `https://line.me/R/msg/text/?${encodeURIComponent(shareText + '\n' + location.href)}`;
-  window.open(url,'_blank');
-});
-xBtn.addEventListener('click', ()=> {
-  const url = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(location.href)}`;
-  window.open(url,'_blank');
-});
-fbBtn.addEventListener('click', ()=> {
-  const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(location.href)}&quote=${encodeURIComponent(shareText)}`;
-  window.open(url,'_blank');
-});
-copyBtn.addEventListener('click', async ()=>{
-  try{
-    await navigator.clipboard.writeText(`${shareText}\n${location.href}`);
-    alert('結果をコピーしました。SNSに貼ってシェアできます。');
-  }catch(e){
-    copyFallback();
-  }
-});
+/* コピーのフォールバック */
 function copyFallback(){
-  prompt('以下をコピーしてSNSに貼ってください。', `${shareText}\n${location.href}`);
+  prompt('以下をコピーしてSNSに貼ってください。', `${preparedShareText}\n${location.href}`);
 }
 
-/* リトライ（ページリロードで簡易実装） */
-jobCta.addEventListener('click', ()=> {
-  // CTAクリック時の簡易トラッキングや処理があればここに
-});
-
-/* 初期表示はスタート画面 */
+/* 初期表示（スタート画面） */
+renderQuestion(0);
+updateProgress();
 </script>
 </body>
 </html>
