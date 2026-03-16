@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>適職診断｜心理学ベースのキャリア診断（30問）</title>
+<title>適職診断｜心理学ベースのキャリア診断（修正版）</title>
 <style>
   :root{
     --bg:#071021; --card:#0b1220; --accent:#6ad1ff; --accent2:#ffd36a;
@@ -59,7 +59,6 @@
 
   <p class="lead">Big Five・RIASEC・MBTI的傾向・自己効力感を組み合わせて、あなたに向く職業トップ3と転職アドバイスを表示します。</p>
 
-  <!-- Start Screen -->
   <div id="startScreen" class="center">
     <div class="startCard">
       <div style="font-size:16px;font-weight:800">準備はいいですか？</div>
@@ -67,11 +66,10 @@
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
         <button id="startBtn" class="startBtn" aria-label="診断を始める">診断を始める</button>
       </div>
-      <div class="small" style="margin-top:10px">※本アプリは簡易診断です。正式な診断や医療的判断ではありません。</div>
+      <div class="small" style="margin-top:10px">※未回答は自動で「どちらでもない（中立）」として扱います。</div>
     </div>
   </div>
 
-  <!-- Quiz Area -->
   <div id="quizArea" style="display:none">
     <div class="progress" aria-hidden="true"><i id="bar"></i></div>
 
@@ -88,7 +86,6 @@
     </div>
   </div>
 
-  <!-- Result Area -->
   <div id="resultArea" style="display:none" class="result" aria-live="polite">
     <div class="small">診断結果</div>
     <div class="score" id="scoreSummary">総合スコア表示</div>
@@ -218,6 +215,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const fbBtn = document.getElementById('facebookBtn');
   const copyBtn = document.getElementById('copyBtn');
 
+  // start
   startBtn.addEventListener('click', ()=> {
     startScreen.style.display = 'none';
     quizArea.style.display = 'block';
@@ -235,6 +233,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   nextBtn.addEventListener('click', onNext);
 
+  // share handlers
   shareNative.addEventListener('click', async ()=>{
     if(navigator.share){
       try{ await navigator.share({title:'適職診断結果', text: preparedShareText, url: location.href}); }
@@ -273,11 +272,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
       div.innerHTML = `<div style="font-size:13px">${labels[v]}</div>`;
       if(answers[i] === v) div.classList.add('selected');
       div.addEventListener('click', ()=> {
-        answers[i] = v;
-        // 自動で次へ（UX向上）: 最終問題は結果へ
-        renderQuestion(i); // update selection UI
+        try{
+          answers[i] = v;
+          updateProgress();
+          // 自動で次へ（UX向上）。最終問題なら結果へ。
+          if(i < NUM_Q - 1){
+            currentIndex = i + 1;
+            renderQuestion(currentIndex);
+          } else {
+            // 最終問題に回答したら即結果表示
+            showResult();
+          }
+        }catch(err){
+          console.error('選択時エラー', err);
+          alert('エラーが発生しました。コンソールを確認してください。');
+        }
       });
-      div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ answers[i]=v; renderQuestion(i); }});
+      div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ answers[i]=v; updateProgress(); if(i < NUM_Q -1){ currentIndex = i+1; renderQuestion(currentIndex);} else { showResult(); } }});
       choices.appendChild(div);
     }
     updateNav();
@@ -296,129 +307,131 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
 
   function onNext(){
-    // 未回答なら中立扱いで進む（ユーザーに確認）
-    if(answers[currentIndex] === null){
-      const ok = confirm('この質問は未回答です。未回答は「どちらでもない」として扱います。進みますか？');
-      if(!ok) return;
-      answers[currentIndex] = 2;
-    }
-    // 次へ or 結果
-    if(currentIndex < NUM_Q -1){
-      currentIndex++;
-      renderQuestion(currentIndex);
-    } else {
-      // 最終問題の後に診断
-      showResult();
+    try{
+      // 未回答なら中立値を自動で入れる（確認ダイアログを省略して確実に進む）
+      if(answers[currentIndex] === null){
+        answers[currentIndex] = 2;
+        updateProgress();
+      }
+      if(currentIndex < NUM_Q -1){
+        currentIndex++;
+        renderQuestion(currentIndex);
+      } else {
+        showResult();
+      }
+    }catch(err){
+      console.error('onNext エラー', err);
+      alert('処理中にエラーが発生しました。コンソールを確認してください。');
     }
   }
 
   function showResult(){
-    // 未回答が残っていれば中立扱いにする（確認）
-    const missing = answers.filter(a=>a===null).length;
-    if(missing > 0){
-      const ok = confirm(`未回答が ${missing} 問あります。未回答は「どちらでもない」として扱います。診断を続けますか？`);
-      if(!ok) return;
+    try{
+      // 最終チェック：未回答があれば中立扱い
       for(let i=0;i<NUM_Q;i++) if(answers[i]===null) answers[i]=2;
-    }
 
-    const totalScore = answers.reduce((s,v)=>s + (v===null?2:v),0);
-    scoreSummary.textContent = `総合スコア：${totalScore} / ${MAX_SCORE} 点`;
+      const totalScore = answers.reduce((s,v)=>s + (v===null?2:v),0);
+      scoreSummary.textContent = `総合スコア：${totalScore} / ${MAX_SCORE} 点`;
 
-    // 指標集計
-    const BF = {O:0,C:0,E:0,A:0,N:0};
-    const RIASEC = {R:0,I:0,A:0,S:0,E:0,C:0};
-    const MBTI = {EI:0,SN:0,TF:0,JP:0};
-    let SE = 0;
+      // 指標集計（簡易）
+      const BF = {O:0,C:0,E:0,A:0,N:0};
+      const RIASEC = {R:0,I:0,A:0,S:0,E:0,C:0};
+      const MBTI = {EI:0,SN:0,TF:0,JP:0};
+      let SE = 0;
 
-    for(let i=0;i<NUM_Q;i++){
-      const q = questions[i];
-      const val = answers[i]===null?2:answers[i];
-      const score = val;
-      for(const key in q.map){
-        const weight = q.map[key];
-        if(key === 'A_RIASEC'){
-          RIASEC.A += score * weight;
-        } else if(key === 'Entrepreneur'){
-          RIASEC.E += score * weight * 0.8;
-        } else {
-          if(BF.hasOwnProperty(key)){
-            BF[key] += score * weight;
-          } else if(RIASEC.hasOwnProperty(key)){
-            RIASEC[key] += score * weight;
-          } else if(MBTI.hasOwnProperty(key)){
-            MBTI[key] += score * weight;
-          } else if(key === 'SE'){
-            SE += score * weight;
+      for(let i=0;i<NUM_Q;i++){
+        const q = questions[i];
+        const val = answers[i]===null?2:answers[i];
+        const score = val;
+        for(const key in q.map){
+          const weight = q.map[key];
+          if(key === 'A_RIASEC'){
+            RIASEC.A += score * weight;
+          } else if(key === 'Entrepreneur'){
+            RIASEC.E += score * weight * 0.8;
           } else {
-            if(RIASEC.hasOwnProperty(key)) RIASEC[key] += score * weight;
+            if(BF.hasOwnProperty(key)){
+              BF[key] += score * weight;
+            } else if(RIASEC.hasOwnProperty(key)){
+              RIASEC[key] += score * weight;
+            } else if(MBTI.hasOwnProperty(key)){
+              MBTI[key] += score * weight;
+            } else if(key === 'SE'){
+              SE += score * weight;
+            } else {
+              if(RIASEC.hasOwnProperty(key)) RIASEC[key] += score * weight;
+            }
           }
         }
       }
-    }
 
-    const bfNorm = {};
-    for(const k in BF){
-      bfNorm[k] = Math.round((BF[k] / (NUM_Q * 1.2)) * 100);
-      if(bfNorm[k] < 0) bfNorm[k] = 0;
-      if(bfNorm[k] > 100) bfNorm[k] = 100;
-    }
-
-    const riNorm = {};
-    let riSum = 0;
-    for(const k in RIASEC) riSum += RIASEC[k];
-    for(const k in RIASEC){
-      riNorm[k] = Math.round(riSum ? (RIASEC[k] / riSum) * 100 : 0);
-    }
-
-    const mbti = {
-      E: MBTI.EI >= 0 ? Math.round((MBTI.EI / (NUM_Q*1)) * 100) : 50,
-      N: MBTI.SN >= 0 ? Math.round((MBTI.SN / (NUM_Q*1)) * 100) : 50,
-      T: MBTI.TF >= 0 ? Math.round((MBTI.TF / (NUM_Q*1)) * 100) : 50,
-      J: MBTI.JP >= 0 ? Math.round((MBTI.JP / (NUM_Q*1)) * 100) : 50
-    };
-
-    const seScore = Math.round((SE / (NUM_Q * 1)) * 100);
-
-    const work = determineWorkStyle(bfNorm, riNorm, mbti, seScore);
-
-    const jobScores = JOBS.map(job=>{
-      let score = 0;
-      for(const tag in job.tags){
-        const weight = job.tags[tag];
-        if(tag === 'A_RIASEC'){
-          score += (riNorm['A'] || 0) * weight;
-        } else if(['R','I','A','S','E','C'].includes(tag)){
-          score += (riNorm[tag] || 0) * weight;
-        } else {
-          if(bfNorm[tag]) score += bfNorm[tag] * weight;
-          if(tag === 'Entrepreneur') score += (mbti.E || 50) * weight;
-        }
+      const bfNorm = {};
+      for(const k in BF){
+        bfNorm[k] = Math.round((BF[k] / (NUM_Q * 1.2)) * 100);
+        if(bfNorm[k] < 0) bfNorm[k] = 0;
+        if(bfNorm[k] > 100) bfNorm[k] = 100;
       }
-      if(job.id === 'entrepreneur') score += seScore * 0.4;
-      if(job.id === 'engineer') score += seScore * 0.2;
-      return {job:job, score};
-    });
-    jobScores.sort((a,b)=>b.score - a.score);
-    const top3 = jobScores.slice(0,3);
 
-    drawBigFiveChart(bfNorm);
-    drawRiasecChart(riNorm);
+      const riNorm = {};
+      let riSum = 0;
+      for(const k in RIASEC) riSum += RIASEC[k];
+      for(const k in RIASEC){
+        riNorm[k] = Math.round(riSum ? (RIASEC[k] / riSum) * 100 : 0);
+      }
 
-    workStyle.textContent = `${work.label} — ${work.brief}`;
-    jobList.innerHTML = '';
-    top3.forEach((j,idx)=>{
-      const li = document.createElement('li');
-      li.textContent = `${j.job.name}（適合度 ${Math.round(j.score)}）`;
-      jobList.appendChild(li);
-    });
-    adviceText.textContent = generateAdvice(work, top3, bfNorm, seScore);
+      const mbti = {
+        E: MBTI.EI >= 0 ? Math.round((MBTI.EI / (NUM_Q*1)) * 100) : 50,
+        N: MBTI.SN >= 0 ? Math.round((MBTI.SN / (NUM_Q*1)) * 100) : 50,
+        T: MBTI.TF >= 0 ? Math.round((MBTI.TF / (NUM_Q*1)) * 100) : 50,
+        J: MBTI.JP >= 0 ? Math.round((MBTI.JP / (NUM_Q*1)) * 100) : 50
+      };
 
-    jobCta.href = `https://www.google.com/search?q=${encodeURIComponent(top3[0].job.name + ' 求人')}`;
+      const seScore = Math.round((SE / (NUM_Q * 1)) * 100);
 
-    quizArea.style.display = 'none';
-    resultArea.style.display = 'block';
+      const work = determineWorkStyle(bfNorm, riNorm, mbti, seScore);
 
-    preparedShareText = `適職診断の結果：総合 ${totalScore} / ${MAX_SCORE} 点\n向いている職業：${top3[0].job.name}\n働き方タイプ：${work.label}\n（簡易診断）`;
+      const jobScores = JOBS.map(job=>{
+        let score = 0;
+        for(const tag in job.tags){
+          const weight = job.tags[tag];
+          if(tag === 'A_RIASEC'){
+            score += (riNorm['A'] || 0) * weight;
+          } else if(['R','I','A','S','E','C'].includes(tag)){
+            score += (riNorm[tag] || 0) * weight;
+          } else {
+            if(bfNorm[tag]) score += bfNorm[tag] * weight;
+            if(tag === 'Entrepreneur') score += (mbti.E || 50) * weight;
+          }
+        }
+        if(job.id === 'entrepreneur') score += seScore * 0.4;
+        if(job.id === 'engineer') score += seScore * 0.2;
+        return {job:job, score};
+      });
+      jobScores.sort((a,b)=>b.score - a.score);
+      const top3 = jobScores.slice(0,3);
+
+      drawBigFiveChart(bfNorm);
+      drawRiasecChart(riNorm);
+
+      workStyle.textContent = `${work.label} — ${work.brief}`;
+      jobList.innerHTML = '';
+      top3.forEach((j,idx)=>{
+        const li = document.createElement('li');
+        li.textContent = `${j.job.name}（適合度 ${Math.round(j.score)}）`;
+        jobList.appendChild(li);
+      });
+      adviceText.textContent = generateAdvice(work, top3, bfNorm, seScore);
+
+      jobCta.href = `https://www.google.com/search?q=${encodeURIComponent(top3[0].job.name + ' 求人')}`;
+
+      quizArea.style.display = 'none';
+      resultArea.style.display = 'block';
+
+      preparedShareText = `適職診断の結果：総合 ${totalScore} / ${MAX_SCORE} 点\n向いている職業：${top3[0].job.name}\n働き方タイプ：${work.label}\n（簡易診断）`;
+    }catch(err){
+      console.error('showResult エラー', err);
+      alert('結果表示中にエラーが発生しました。コンソールを確認してください。');
+    }
   }
 
   function determineWorkStyle(bf, ri, mbti, se){
@@ -497,7 +510,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     prompt('以下をコピーしてSNSに貼ってください。', `${preparedShareText}\n${location.href}`);
   }
 
-  // 初期状態はスタート画面（質問は start ボタンで初めて表示）
+  // 初期はスタート画面。renderQuestion は start ボタンで呼ばれる。
 });
 </script>
 </body>
