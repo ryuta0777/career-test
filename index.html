@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>適職診断｜心理学ベースのキャリア診断（修正版）</title>
+<title>適職診断｜心理学ベース（修正版）</title>
 <style>
   :root{
     --bg:#071021; --card:#0b1220; --accent:#6ad1ff; --accent2:#ffd36a;
@@ -27,8 +27,9 @@
   .qnum{font-size:12px;color:var(--muted);margin-bottom:6px}
   .qtext{font-size:16px;margin-bottom:12px;line-height:1.5}
   .choices{display:flex;flex-direction:column;gap:8px}
-  .choice{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:8px;text-align:left;cursor:pointer;user-select:none}
-  .choice.selected{background:linear-gradient(180deg,rgba(106,209,255,0.08),rgba(255,211,106,0.04));border-color:rgba(106,209,255,0.18)}
+  .choice{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:8px;text-align:left;cursor:pointer;user-select:none;transition:background .12s,transform .06s}
+  .choice:hover{transform:translateY(-2px)}
+  .choice.selected{background:linear-gradient(180deg,rgba(106,209,255,0.12),rgba(255,211,106,0.06));border-color:rgba(106,209,255,0.25)}
   .nav{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
   .btn{background:var(--accent);color:#072033;padding:8px 12px;border-radius:8px;border:none;font-weight:700;cursor:pointer}
   .btn.ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.06)}
@@ -237,7 +238,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   shareNative.addEventListener('click', async ()=>{
     if(navigator.share){
       try{ await navigator.share({title:'適職診断結果', text: preparedShareText, url: location.href}); }
-      catch(e){ alert('共有がキャンセルされました。'); }
+      catch(e){ console.warn('share cancelled', e); }
     } else { copyFallback(); }
   });
   lineBtn.addEventListener('click', ()=> {
@@ -271,24 +272,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
       div.setAttribute('data-value',v);
       div.innerHTML = `<div style="font-size:13px">${labels[v]}</div>`;
       if(answers[i] === v) div.classList.add('selected');
+      // クリックで回答を保存するが自動遷移はしない
       div.addEventListener('click', ()=> {
         try{
           answers[i] = v;
+          // 選択の視覚反映
+          const nodes = choices.querySelectorAll('.choice');
+          nodes.forEach(n=>n.classList.remove('selected'));
+          div.classList.add('selected');
           updateProgress();
-          // 自動で次へ（UX向上）。最終問題なら結果へ。
-          if(i < NUM_Q - 1){
-            currentIndex = i + 1;
-            renderQuestion(currentIndex);
-          } else {
-            // 最終問題に回答したら即結果表示
-            showResult();
-          }
         }catch(err){
           console.error('選択時エラー', err);
-          alert('エラーが発生しました。コンソールを確認してください。');
         }
       });
-      div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ answers[i]=v; updateProgress(); if(i < NUM_Q -1){ currentIndex = i+1; renderQuestion(currentIndex);} else { showResult(); } }});
+      div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ answers[i]=v; const nodes = choices.querySelectorAll('.choice'); nodes.forEach(n=>n.classList.remove('selected')); div.classList.add('selected'); updateProgress(); }});
       choices.appendChild(div);
     }
     updateNav();
@@ -308,7 +305,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   function onNext(){
     try{
-      // 未回答なら中立値を自動で入れる（確認ダイアログを省略して確実に進む）
+      // 未回答なら中立値を自動で入れる
       if(answers[currentIndex] === null){
         answers[currentIndex] = 2;
         updateProgress();
@@ -321,13 +318,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
     }catch(err){
       console.error('onNext エラー', err);
-      alert('処理中にエラーが発生しました。コンソールを確認してください。');
     }
   }
 
   function showResult(){
     try{
-      // 最終チェック：未回答があれば中立扱い
+      // 未回答があれば中立扱い
       for(let i=0;i<NUM_Q;i++) if(answers[i]===null) answers[i]=2;
 
       const totalScore = answers.reduce((s,v)=>s + (v===null?2:v),0);
@@ -430,7 +426,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
       preparedShareText = `適職診断の結果：総合 ${totalScore} / ${MAX_SCORE} 点\n向いている職業：${top3[0].job.name}\n働き方タイプ：${work.label}\n（簡易診断）`;
     }catch(err){
       console.error('showResult エラー', err);
-      alert('結果表示中にエラーが発生しました。コンソールを確認してください。');
     }
   }
 
