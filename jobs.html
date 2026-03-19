@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>あなたに合う求人レコメンド | 適職診断結果</title>
+<style>
+:root{
+  --bg:#020617;
+  --card:#020617;
+  --accent:#38bdf8;
+  --accent2:#22c55e;
+  --muted:#9ca3af;
+  --border:rgba(148,163,184,0.25);
+  --radius:16px;
+  --shadow:0 18px 45px rgba(15,23,42,0.9);
+  --font-sans:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:var(--font-sans);
+  background:radial-gradient(circle at top,#0f172a 0,#020617 55%);
+  color:#e5e7eb;
+  -webkit-font-smoothing:antialiased;
+  padding:18px 14px 24px;
+}
+.app{
+  max-width:840px;
+  margin:0 auto;
+}
+.header{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+.logo{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  background:conic-gradient(from 160deg,#38bdf8,#22c55e,#a855f7,#38bdf8);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  color:#020617;
+  font-size:18px;
+  box-shadow:0 10px 30px rgba(15,23,42,0.9);
+}
+.title-wrap{
+  flex:1;
+}
+.title{
+  font-size:18px;
+  font-weight:800;
+}
+.subtitle{
+  font-size:12px;
+  color:var(--muted);
+}
+.badge{
+  font-size:11px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.4);
+  color:var(--muted);
+}
+
+/* Card */
+.card{
+  background:radial-gradient(circle at top left,rgba(56,189,248,0.12),transparent 55%),
+             radial-gradient(circle at bottom right,rgba(34,197,94,0.12),transparent 55%),
+             linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.98));
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  padding:16px 14px 18px;
+}
+
+/* Summary */
+.summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.summary-main{
+  flex:1 1 260px;
+}
+.summary-side{
+  flex:1 1 220px;
+}
+.summary-title{
+  font-size:15px;
+  font-weight:700;
+  margin-bottom:6px;
+}
+.summary-text{
+  font-size:13px;
+  color:#e5e7eb;
+  line-height:1.7;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:6px;
+}
+.chip{
+  font-size:11px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(15,23,42,0.9);
+  border:1px solid rgba(148,163,184,0.4);
+  color:#cbd5f5;
+}
+
+/* Stats */
+.stats{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:10px;
+}
+.stat{
+  flex:1 1 120px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:rgba(15,23,42,0.9);
+  border:1px solid rgba(148,163,184,0.35);
+}
+.stat-label{
+  font-size:11px;
+  color:var(--muted);
+}
+.stat-value{
+  font-size:14px;
+  font-weight:700;
+}
+
+/* Jobs */
+.jobs-section{
+  margin-top:14px;
+}
+.section-title{
+  font-size:15px;
+  font-weight:800;
+  margin-bottom:4px;
+}
+.section-sub{
+  font-size:12px;
+  color:var(--muted);
+}
+.job-list{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.job-card{
+  border-radius:14px;
+  padding:10px 10px 11px;
+  background:linear-gradient(135deg,rgba(15,23,42,0.98),rgba(15,23,42,0.96));
+  border:1px solid rgba(148,163,184,0.4);
+  display:flex;
+  gap:10px;
+}
+.job-rank{
+  width:32px;
+  font-size:11px;
+  color:var(--muted);
+}
+.job-rank span{
+  display:inline-block;
+  padding:3px 7px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.5);
+}
+.job-body{
+  flex:1;
+}
+.job-name{
+  font-size:14px;
+  font-weight:700;
+}
+.job-meta{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:2px;
+}
+.job-reason{
+  font-size:12px;
+  margin-top:6px;
+  color:#e5e7eb;
+}
+.job-actions{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:6px;
+}
+.job-score{
+  font-size:11px;
+  color:var(--muted);
+}
+.btn{
+  border:none;
+  cursor:pointer;
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:12px;
+  font-weight:700;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.btn-primary{
+  background:linear-gradient(90deg,#38bdf8,#22c55e);
+  color:#020617;
+  box-shadow:0 10px 25px rgba(15,23,42,0.9);
+}
+.btn-ghost{
+  background:transparent;
+  color:var(--muted);
+  border:1px solid rgba(148,163,184,0.4);
+}
+
+/* Advice */
+.advice{
+  margin-top:14px;
+  padding:10px 10px 11px;
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.96));
+  border:1px solid rgba(148,163,184,0.4);
+  font-size:12px;
+  line-height:1.8;
+  color:#e5e7eb;
+}
+
+/* Share */
+.share-wrap{
+  margin-top:14px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  justify-content:space-between;
+}
+.share-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.share-label{
+  font-size:11px;
+  color:var(--muted);
+}
+
+/* Footer */
+.footer{
+  margin-top:12px;
+  font-size:11px;
+  color:var(--muted);
+  text-align:center;
+}
+
+/* Responsive */
+@media (max-width:640px){
+  .card{padding:14px 12px 16px;}
+  .job-card{flex-direction:column;}
+  .job-actions{flex-direction:row;align-items:center;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="logo">JOB</div>
+    <div class="title-wrap">
+      <div class="title">あなたに合う求人レコメンド</div>
+      <div class="subtitle">適職診断の結果をもとに、あなたの性格・興味・働き方に合う求人サービスをピックアップしました。</div>
+    </div>
+    <div class="badge">診断結果に基づくレコメンド</div>
+  </header>
+
+  <main class="card">
+    <!-- Summary -->
+    <section class="summary">
+      <div class="summary-main">
+        <div class="summary-title">診断結果のハイライト</div>
+        <div class="summary-text" id="summaryText">
+          診断結果の読み込み中です…
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="summary-side">
+        <div class="summary-title">性格・興味のプロファイル</div>
+        <div class="stats" id="stats"></div>
+      </div>
+    </section>
+
+    <!-- Jobs -->
+    <section class="jobs-section">
+      <div class="section-title">あなたに特に合いそうな職種トップ3</div>
+      <div class="section-sub">それぞれの職種に強みが活かせる理由と、相性の良い求人サービスを紹介します。</div>
+      <div class="job-list" id="jobList"></div>
+    </section>
+
+    <!-- Advice -->
+    <section class="advice" id="advice">
+      診断結果をもとに、あなたの性格・興味・働き方に合う求人サービスを整理しています。まずは1〜2つのサービスに登録し、実際の求人票を眺めながら「自分がワクワクする仕事」「無理なく続けられそうな環境」を具体的にイメージしてみてください。<br><br>
+      応募は「完璧になってから」ではなく、「気になる求人を見つけたタイミング」で動くのがポイントです。今のあなたの強み・弱みを正直に受け止めつつ、「伸ばしたい方向」に近い求人を選ぶことで、キャリアの軸が少しずつ明確になっていきます。
+    </section>
+
+    <!-- Share & CTA -->
+    <section class="share-wrap">
+      <div class="share-label">診断結果や求人レコメンドを保存・共有する</div>
+      <div class="share-buttons">
+        <button class="btn btn-ghost" id="shareX">Xで共有</button>
+        <button class="btn btn-ghost" id="shareLINE">LINEで送る</button>
+        <button class="btn btn-ghost" id="shareCopy">URLをコピー</button>
+      </div>
+    </section>
+
+    <div class="footer">
+      本ページの求人リンクには、将来的にアフィリエイトリンクが含まれる場合があります。<br>
+      診断は自己理解の一助としてご利用いただき、最終的な判断はご自身の意思と専門家の助言を優先してください。
+    </div>
+  </main>
+</div>
+
+<script>
+// --- クエリパラメータ取得 ---
+const params = new URLSearchParams(location.search);
+
+// 診断結果（存在しない場合はダミー）
+const result = {
+  top: decodeURIComponent(params.get('top') || 'エンジニア'),
+  second: decodeURIComponent(params.get('second') || 'デザイナー'),
+  third: decodeURIComponent(params.get('third') || 'マーケター'),
+  style: params.get('style') || 'independent',
+  big5: {
+    O: Number(params.get('O') || 70),
+    C: Number(params.get('C') || 65),
+    E: Number(params.get('E') || 60),
+    A: Number(params.get('A') || 55),
+    N: Number(params.get('N') || 45)
+  },
+  riasec: {
+    R: Number(params.get('R') || 55),
+    I: Number(params.get('I') || 65),
+    A: Number(params.get('Ai') || 60),
+    S: Number(params.get('S') || 50),
+    E: Number(params.get('Ei') || 55),
+    C: Number(params.get('Cc') || 60)
+  },
+  selfEff: Number(params.get('self') || 70)
+};
+
+// --- 職種ごとの推奨求人サービス（ここにアフィリエイトリンクを紐づける想定） ---
+const jobServices = {
+  "エンジニア": [
+    { name:"Green（IT・Web系に強い）", key:"green" },
+    { name:"Wantedly（スタートアップ志向）", key:"wantedly" }
+  ],
+  "デザイナー": [
+    { name:"Wantedly（クリエイティブ案件）", key:"wantedly" },
+    { name:"Green（デザイン職）", key:"green" }
+  ],
+  "営業": [
+    { name:"リクナビNEXT（営業職多数）", key:"rikunabi" }
+  ],
+  "マーケター": [
+    { name:"Wantedly（マーケ・グロース）", key:"wantedly" }
+  ],
+  "研究者": [
+    { name:"doda（専門職・研究職）", key:"doda" }
+  ],
+  "起業家": [
+    { name:"Wantedly（スタートアップ）", key:"wantedly" }
+  ],
+  "コンサルタント": [
+    { name:"doda（コンサル案件）", key:"doda" }
+  ],
+  "クリエイター": [
+    { name:"Wantedly（クリエイティブ）", key:"wantedly" }
+  ],
+  "教育者": [
+    { name:"マイナビ転職（教育・保育）", key:"mynavi" }
+  ],
+  "医療系": [
+    { name:"マイナビ転職（医療系）", key:"mynavi" }
+  ]
+};
+
+// --- アフィリエイトリンク（ダミー） ---
+// 実際には A8.net 等で発行されたあなた専用URLに差し替える
+const affiliateLinks = {
+  green:   "https://example.com/green-affiliate",
+  wantedly:"https://example.com/wantedly-affiliate",
+  rikunabi:"https://example.com/rikunabi-affiliate",
+  doda:    "https://example.com/doda-affiliate",
+  mynavi:  "https://example.com/mynavi-affiliate"
+};
+
+// --- サマリー生成 ---
+function renderSummary(){
+  const summaryText = document.getElementById('summaryText');
+  const chips = document.getElementById('chips');
+  const styleLabel = {
+    independent:"独立志向（自律型）",
+    collaborative:"協働志向（チームプレイヤー）",
+    research:"研究志向（分析型）",
+    entrepreneur:"起業家志向（挑戦型）",
+    stable:"安定志向（堅実型）"
+  }[result.style] || "バランス型";
+
+  summaryText.innerHTML =
+    `あなたの診断結果では、<strong>${escapeHtml(result.top)}</strong>・<strong>${escapeHtml(result.second)}</strong>・<strong>${escapeHtml(result.third)}</strong> の順に職業適性が高いと判定されました。` +
+    `また、働き方の傾向としては<strong>${styleLabel}</strong>の色合いが強く、` +
+    `「どのような環境で、どのように働くとストレスが少なく力を発揮しやすいか」が比較的はっきりしています。<br><br>` +
+    `以下では、あなたの性格特性（Big Five）や職業興味（RIASEC）を踏まえつつ、` +
+    `実際に登録・応募を検討しやすい求人サービスを厳選して紹介します。`;
+
+  const chipData = [
+    {label:"適職1位", value:result.top},
+    {label:"適職2位", value:result.second},
+    {label:"適職3位", value:result.third},
+    {label:"働き方タイプ", value:styleLabel},
+    {label:"自己効力感", value:`${result.selfEff}%`}
+  ];
+  chips.innerHTML = '';
+  chipData.forEach(c=>{
+    const div = document.createElement('div');
+    div.className = 'chip';
+    div.textContent = `${c.label}: ${c.value}`;
+    chips.appendChild(div);
+  });
+}
+
+// --- スタッツ生成 ---
+function renderStats(){
+  const stats = document.getElementById('stats');
+  stats.innerHTML = '';
+  const big5Labels = {
+    O:"開放性",
+    C:"誠実性",
+    E:"外向性",
+    A:"協調性",
+    N:"神経症傾向"
+  };
+  Object.keys(result.big5).forEach(k=>{
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = `<div class="stat-label">${big5Labels[k]}（${k}）</div><div class="stat-value">${result.big5[k]}%</div>`;
+    stats.appendChild(div);
+  });
+}
+
+// --- 職種カード生成 ---
+function renderJobs(){
+  const jobList = document.getElementById('jobList');
+  jobList.innerHTML = '';
+  const jobs = [result.top, result.second, result.third];
+
+  jobs.forEach((jobName, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'job-card';
+
+    const rank = document.createElement('div');
+    rank.className = 'job-rank';
+    rank.innerHTML = `<span>${idx+1}位</span>`;
+    card.appendChild(rank);
+
+    const body = document.createElement('div');
+    body.className = 'job-body';
+    const metaText = jobMeta(jobName);
+    body.innerHTML =
+      `<div class="job-name">${escapeHtml(jobName)}</div>` +
+      `<div class="job-meta">${metaText}</div>` +
+      `<div class="job-reason">${jobReason(jobName, idx)}</div>`;
+    card.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'job-actions';
+
+    const score = document.createElement('div');
+    score.className = 'job-score';
+    score.textContent = `診断上の適合度イメージ: ${scoreEstimate(idx)}%`;
+    actions.appendChild(score);
+
+    const btnWrap = document.createElement('div');
+    const services = jobServices[jobName] || [];
+    if(services.length){
+      const primary = services[0];
+      const url = affiliateLinks[primary.key] || '#';
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = `${primary.name}で求人を見る`;
+      btn.addEventListener('click', ()=> {
+        window.open(url, '_blank');
+      });
+      btnWrap.appendChild(btn);
+
+      if(services[1]){
+        const s2 = services[1];
+        const url2 = affiliateLinks[s2.key] || '#';
+        const btn2 = document.createElement('button');
+        btn2.className = 'btn btn-ghost';
+        btn2.textContent = s2.name;
+        btn2.addEventListener('click', ()=> {
+          window.open(url2, '_blank');
+        });
+        btnWrap.appendChild(btn2);
+      }
+    }else{
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = "転職サイトでこの職種を検索";
+      btn.addEventListener('click', ()=> {
+        const q = encodeURIComponent(jobName + " 求人");
+        window.open(`https://www.google.com/search?q=${q}`, '_blank');
+      });
+      btnWrap.appendChild(btn);
+    }
+    actions.appendChild(btnWrap);
+    card.appendChild(actions);
+
+    jobList.appendChild(card);
+  });
+}
+
+// --- 職種ごとの説明 ---
+function jobMeta(job){
+  switch(job){
+    case "エンジニア":
+      return "論理的思考力・問題解決力・継続学習が活きる職種です。";
+    case "デザイナー":
+      return "感性と構造的な思考を両立させるクリエイティブ職です。";
+    case "営業":
+      return "対人コミュニケーションと提案力が鍵となるフロント職です。";
+    case "マーケター":
+      return "データと仮説検証を通じて価値を届ける役割です。";
+    case "研究者":
+      return "探究心と粘り強さが求められる専門性の高い職種です。";
+    case "起業家":
+      return "不確実性の中で意思決定し、価値を生み出す挑戦的な役割です。";
+    case "コンサルタント":
+      return "課題整理と論理的提案を通じて企業を支援する職種です。";
+    case "クリエイター":
+      return "表現力と独自性を活かしてコンテンツを生み出す仕事です。";
+    case "教育者":
+      return "人の成長を支え、学びの場をつくる役割です。";
+    case "医療系":
+      return "専門知識と責任感が求められる、人の健康を支える仕事です。";
+    default:
+      return "あなたの強みや興味を活かしやすい可能性が高い領域です。";
+  }
+}
+
+// --- 職種ごとの理由（簡易） ---
+function jobReason(job, idx){
+  const base =
+    idx === 0 ? "診断結果から最も強く適性が示された領域です。" :
+    idx === 1 ? "1位の職種と並んで、強みを活かしやすい有力な選択肢です。" :
+                "状況や環境次第で、十分に活躍が期待できるポジションです。";
+
+  if(job === "エンジニア"){
+    return base + " 開放性や誠実性が高い場合、継続的な学習と粘り強い問題解決が求められるエンジニア職との相性が良くなります。論理的思考や技術への興味があるなら、まずはIT・Web系の求人から眺めてみるとイメージが湧きやすいでしょう。";
+  }
+  if(job === "デザイナー"){
+    return base + " 感性の豊かさや新しい表現への好奇心が強い場合、デザインやUI/UXの領域で力を発揮しやすくなります。ポートフォリオがなくても、未経験歓迎の求人やアシスタントポジションからスタートする道もあります。";
+  }
+  if(job === "営業"){
+    return base + " 外向性や協調性が高い場合、人と接する機会が多い営業職で成果を出しやすくなります。数字目標に向き合うプレッシャーはありますが、その分評価が分かりやすく、キャリアアップや年収アップにつながりやすい領域です。";
+  }
+  if(job === "マーケター"){
+    return base + " データを扱うことや仮説検証が好きな人にとって、マーケティングは非常に相性の良い領域です。Webマーケ、SNS運用、広告運用など、入口となる職種も多いため、まずは興味の持てる分野から求人をチェックしてみてください。";
+  }
+  return base + " 実際の求人票を見ながら、「自分がどのような場面で力を発揮できそうか」を具体的にイメージしていくことで、キャリアの方向性がよりクリアになっていきます。";
+}
+
+// --- 適合度のざっくり表示 ---
+function scoreEstimate(idx){
+  return idx === 0 ? 88 : idx === 1 ? 78 : 68;
+}
+
+// --- エスケープ ---
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[s]));
+}
+
+// --- 共有ボタン ---
+document.getElementById('shareX').addEventListener('click', ()=>{
+  const text = encodeURIComponent("適職診断の結果から、私に合う求人レコメンドが表示されました。");
+  const url = encodeURIComponent(location.href);
+  window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`,'_blank');
+});
+document.getElementById('shareLINE').addEventListener('click', ()=>{
+  const text = encodeURIComponent("適職診断の結果から、私に合う求人レコメンドが表示されました。");
+  const url = encodeURIComponent(location.href);
+  window.open(`https://line.me/R/msg/text/?${text}%0A${url}`,'_blank');
+});
+document.getElementById('shareCopy').addEventListener('click', ()=>{
+  const text = location.href;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(()=>{
+      alert('このページのURLをコピーしました。メモやチャットに貼り付けて保存できます。');
+    },()=>{
+      alert('コピーに失敗しました。手動でURLをコピーしてください。');
+    });
+  }else{
+    alert('お使いの環境では自動コピーが利用できません。手動でURLをコピーしてください。');
+  }
+});
+
+// --- 初期描画 ---
+renderSummary();
+renderStats();
+renderJobs();
+</script>
+</body>
+</html>
